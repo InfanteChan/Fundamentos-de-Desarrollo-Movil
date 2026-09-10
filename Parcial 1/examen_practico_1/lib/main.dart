@@ -39,6 +39,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   static const Color mainGreen = Color(0xFF0D8A72);
   static const Color sectionOrange = Color(0xFFE67E22);
+  static const Color sectionPurple = Color(0xFF9B59B6);
 
   static const Color backgroundColor = Color(0xFFF7F7F7);
   static const Color cardColor = Color(0xFFF4F6F5);
@@ -60,6 +61,16 @@ class _MyHomePageState extends State<MyHomePage> {
     'Barco',
   ];
 
+  bool _hotelIncluido = false;
+  bool _tourGuiado = false;
+  bool _seguroViaje = false;
+
+  bool _notificaciones = true;
+
+  double _presupuesto = 3000;
+
+  DateTime? _fechaViaje;
+
   @override
   void dispose() {
     _nombreController.dispose();
@@ -71,8 +82,17 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _nombreController.clear();
       _correoController.clear();
+
       _destinoSeleccionado = 'Playa';
       _transporteSeleccionado = 'Avión';
+
+      _hotelIncluido = false;
+      _tourGuiado = false;
+      _seguroViaje = false;
+
+      _notificaciones = true;
+      _presupuesto = 3000;
+      _fechaViaje = null;
     });
   }
 
@@ -89,6 +109,26 @@ class _MyHomePageState extends State<MyHomePage> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _seleccionarFecha(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2030),
+    );
+
+    if (picked != null && picked != _fechaViaje) {
+      setState(() {
+        _fechaViaje = picked;
+      });
+
+      _mostrarSnackBar(
+        'Fecha seleccionada: '
+        '${picked.day}/${picked.month}/${picked.year}',
+      );
+    }
   }
 
   @override
@@ -124,6 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
             _buildDatosViajero(),
             const SizedBox(height: 16),
             _buildDestinoYTransporte(),
+            const SizedBox(height: 16),
+            _buildExtrasYPreferencias(),
           ],
         ),
       ),
@@ -210,7 +252,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               _buildDestinoCard(
                 'Playa',
-                Icons.umbrella_outlined,
+                Icons.beach_access,
                 Colors.blue,
               ),
               const SizedBox(width: 10),
@@ -278,6 +320,360 @@ class _MyHomePageState extends State<MyHomePage> {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildExtrasYPreferencias() {
+    return _buildSectionContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            icon: Icons.tune,
+            title: 'Sección 4 · Extras y preferencias',
+            subtitle: 'Personaliza tu experiencia',
+            color: sectionPurple,
+            iconBackgroundColor: const Color(0xFFF5EEF8),
+          ),
+          _buildDivider(),
+          _buildExtraItem(
+            'Hotel incluido',
+            '+ \$1200',
+            Icons.hotel,
+            _hotelIncluido,
+            (value) {
+              setState(() {
+                _hotelIncluido = value;
+              });
+
+              _mostrarSnackBar(
+                'Hotel incluido: '
+                '${value ? "Activado" : "Desactivado"}',
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildExtraItem(
+            'Tour guiado',
+            '+ \$600',
+            Icons.flag,
+            _tourGuiado,
+            (value) {
+              setState(() {
+                _tourGuiado = value;
+              });
+
+              _mostrarSnackBar(
+                'Tour guiado: '
+                '${value ? "Activado" : "Desactivado"}',
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _buildExtraItem(
+            'Seguro de viaje',
+            '+ \$400',
+            Icons.shield,
+            _seguroViaje,
+            (value) {
+              setState(() {
+                _seguroViaje = value;
+              });
+
+              _mostrarSnackBar(
+                'Seguro de viaje: '
+                '${value ? "Activado" : "Desactivado"}',
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          _buildNotificaciones(),
+          const SizedBox(height: 16),
+          _buildPresupuesto(),
+          const SizedBox(height: 16),
+          _buildFechaViaje(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificaciones() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5EEF8),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: SwitchListTile(
+        title: const Text(
+          'Recibir notificaciones',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        subtitle: Text(
+          _notificaciones
+              ? 'Activadas'
+              : 'Desactivadas',
+          style: const TextStyle(
+            color: Colors.green,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        value: _notificaciones,
+        activeThumbColor: Colors.white,
+        activeTrackColor: sectionPurple,
+        onChanged: (bool value) {
+          setState(() {
+            _notificaciones = value;
+          });
+
+          _mostrarSnackBar(
+            'Notificaciones: '
+            '${value ? "Activadas" : "Desactivadas"}',
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPresupuesto() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFFF9EBEF),
+            Color(0xFFE8F8F5),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Presupuesto:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: sectionPurple,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '\$${_presupuesto.toInt()}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Slider(
+            value: _presupuesto,
+            min: 500,
+            max: 10000,
+            divisions: 20,
+            activeColor: sectionPurple,
+            inactiveColor: cardBorderColor,
+            onChanged: (double value) {
+              setState(() {
+                _presupuesto = value;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFechaViaje() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: sectionPurple.withAlpha(100),
+          width: 1.5,
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 4,
+        ),
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF5EEF8),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Icon(
+            Icons.calendar_month,
+            color: sectionPurple,
+            size: 24,
+          ),
+        ),
+        title: const Text(
+          'Fecha del viaje',
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.black38,
+          ),
+        ),
+        subtitle: Text(
+          _fechaViaje == null
+              ? 'Toca para elegir fecha'
+              : '${_fechaViaje!.day}/'
+                '${_fechaViaje!.month}/'
+                '${_fechaViaje!.year}',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.black38,
+        ),
+        onTap: () => _seleccionarFecha(context),
+      ),
+    );
+  }
+
+  Widget _buildExtraItem(
+    String titulo,
+    String precio,
+    IconData icon,
+    bool variable,
+    Function(bool) alCambiar,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: cardBorderColor,
+          width: 1,
+        ),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F4F4),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            color: Colors.black45,
+          ),
+        ),
+        title: Text(
+          titulo,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Text(
+          precio,
+          style: const TextStyle(
+            color: Colors.black38,
+          ),
+        ),
+        trailing: Checkbox(
+          value: variable,
+          activeColor: sectionPurple,
+          onChanged: (bool? value) {
+            alCambiar(value ?? false);
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDestinoCard(
+    String tipo,
+    IconData icon,
+    Color color,
+  ) {
+    final bool isSelected =
+        _destinoSeleccionado == tipo;
+
+    return Expanded(
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFFE1F5FE)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected
+                ? Colors.blue
+                : cardBorderColor,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () {
+            setState(() {
+              _destinoSeleccionado = tipo;
+            });
+
+            _mostrarSnackBar(
+              'Destino seleccionado: $tipo',
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: 16,
+            ),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected
+                      ? Colors.blue
+                      : color,
+                  size: 32,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  tipo,
+                  style: TextStyle(
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.blue
+                        : Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -395,72 +791,6 @@ class _MyHomePageState extends State<MyHomePage> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide.none,
-      ),
-    );
-  }
-
-  Widget _buildDestinoCard(
-    String tipo,
-    IconData icon,
-    Color color,
-  ) {
-    final bool isSelected =
-        _destinoSeleccionado == tipo;
-
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFFE1F5FE)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected
-                ? Colors.blue
-                : cardBorderColor,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () {
-            setState(() {
-              _destinoSeleccionado = tipo;
-            });
-
-            _mostrarSnackBar(
-              'Destino seleccionado: $tipo',
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              vertical: 16,
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  icon,
-                  color: isSelected
-                      ? Colors.blue
-                      : color,
-                  size: 32,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  tipo,
-                  style: TextStyle(
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    color: isSelected
-                        ? Colors.blue
-                        : Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
