@@ -131,6 +131,26 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  void _verResumen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BoletoPage(
+          nombre: _nombreController.text,
+          correo: _correoController.text,
+          destino: _destinoSeleccionado,
+          transporte: _transporteSeleccionado,
+          hotelIncluido: _hotelIncluido,
+          tourGuiado: _tourGuiado,
+          seguroViaje: _seguroViaje,
+          notificaciones: _notificaciones,
+          presupuesto: _presupuesto,
+          fechaViaje: _fechaViaje,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,21 +180,13 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInformacionGeneral(),
-
             const SizedBox(height: 16),
-
             _buildDatosViajero(),
-
             const SizedBox(height: 16),
-
             _buildDestinoYTransporte(),
-
             const SizedBox(height: 16),
-
             _buildExtrasYPreferencias(),
-
             const SizedBox(height: 16),
-
             _buildConfirmar(),
           ],
         ),
@@ -225,7 +237,7 @@ class _MyHomePageState extends State<MyHomePage> {
           TextFormField(
             controller: _nombreController,
             decoration: _buildInputDecoration(
-              hintText: 'Nombre completo',
+              hintText: 'Ej: Ana Garcia',
               icon: Icons.person,
               color: mainGreen,
             ),
@@ -235,7 +247,7 @@ class _MyHomePageState extends State<MyHomePage> {
             controller: _correoController,
             keyboardType: TextInputType.emailAddress,
             decoration: _buildInputDecoration(
-              hintText: 'Correo electrónico',
+              hintText: 'ana@correo.com',
               icon: Icons.email,
               color: mainGreen,
             ),
@@ -423,9 +435,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
         subtitle: Text(
-          _notificaciones
-              ? 'Activadas'
-              : 'Desactivadas',
+          _notificaciones ? 'Activadas' : 'Desactivadas',
           style: const TextStyle(
             color: Colors.green,
             fontWeight: FontWeight.bold,
@@ -622,11 +632,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    _mostrarSnackBar(
-                      'Mostrando resumen de la reserva',
-                    );
-                  },
+                  onPressed: _verResumen,
                   icon: const Icon(
                     Icons.visibility,
                     color: mainGreen,
@@ -923,6 +929,278 @@ class _MyHomePageState extends State<MyHomePage> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide.none,
+      ),
+    );
+  }
+}
+
+class BoletoPage extends StatelessWidget {
+  const BoletoPage({
+    super.key,
+    required this.nombre,
+    required this.correo,
+    required this.destino,
+    required this.transporte,
+    required this.hotelIncluido,
+    required this.tourGuiado,
+    required this.seguroViaje,
+    required this.notificaciones,
+    required this.presupuesto,
+    required this.fechaViaje,
+  });
+
+  final String nombre;
+  final String correo;
+  final String destino;
+  final String transporte;
+  final bool hotelIncluido;
+  final bool tourGuiado;
+  final bool seguroViaje;
+  final bool notificaciones;
+  final double presupuesto;
+  final DateTime? fechaViaje;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0D8A72),
+        foregroundColor: Colors.white,
+        title: const Text(
+          'Mi Boleto',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Card(
+              elevation: 3,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD2EDE8),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.flight_takeoff,
+                        color: Color(0xFF0D8A72),
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Reserva confirmada',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0D8A72),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Estos son los datos de tu viaje',
+                      style: TextStyle(
+                        color: Colors.black45,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildInfoRow(
+                      Icons.person,
+                      'Viajero',
+                      nombre.isEmpty ? 'No especificado' : nombre,
+                    ),
+                    _buildInfoRow(
+                      Icons.email,
+                      'Correo',
+                      correo.isEmpty ? 'No especificado' : correo,
+                    ),
+                    _buildInfoRow(
+                      Icons.location_on,
+                      'Destino',
+                      destino,
+                    ),
+                    _buildInfoRow(
+                      Icons.directions_bus,
+                      'Transporte',
+                      transporte,
+                    ),
+                    _buildInfoRow(
+                      Icons.calendar_month,
+                      'Fecha',
+                      fechaViaje == null
+                          ? 'No seleccionada'
+                          : '${fechaViaje!.day}/'
+                            '${fechaViaje!.month}/'
+                            '${fechaViaje!.year}',
+                    ),
+                    _buildInfoRow(
+                      Icons.attach_money,
+                      'Presupuesto',
+                      '\$${presupuesto.toInt()}',
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(),
+                    const SizedBox(height: 12),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Extras',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _buildExtraResumen(
+                      'Hotel incluido',
+                      hotelIncluido,
+                    ),
+                    _buildExtraResumen(
+                      'Tour guiado',
+                      tourGuiado,
+                    ),
+                    _buildExtraResumen(
+                      'Seguro de viaje',
+                      seguroViaje,
+                    ),
+                    _buildExtraResumen(
+                      'Notificaciones',
+                      notificaciones,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: const Icon(
+                  Icons.arrow_back,
+                ),
+                label: const Text(
+                  'Regresar',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D8A72),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String titulo,
+    String valor,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F6F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: const Color(0xFF0D8A72),
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: const TextStyle(
+                    color: Colors.black45,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  valor,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExtraResumen(
+    String titulo,
+    bool seleccionado,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            seleccionado
+                ? Icons.check_circle
+                : Icons.cancel_outlined,
+            color: seleccionado
+                ? const Color(0xFF0D8A72)
+                : Colors.black26,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            titulo,
+            style: TextStyle(
+              color: seleccionado
+                  ? Colors.black87
+                  : Colors.black38,
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
     );
   }
