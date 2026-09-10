@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false, // Quita la etiqueta de debug para que se vea más limpio
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF00897B)),
       ),
@@ -30,20 +30,29 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final TextEditingController _nombreController = TextEditingController();
+  final TextEditingController _correoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _correoController.dispose();
+    super.dispose();
+  }
   
   void _resetForm() {
     setState(() {
-      // Espacio para limpiar futuros campos
+      _nombreController.clear();
+      _correoController.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Tono verde oscuro característico para títulos e interfaz principal
     const mainGreen = Color(0xFF0D8A72);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7), // Fondo de pantalla ligeramente gris para contrastar la tarjeta
+      backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
         backgroundColor: mainGreen, 
         foregroundColor: Colors.white,
@@ -64,12 +73,11 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- TARJETA DE INFORMACIÓN GENERAL (DISEÑO FIEL A LA IMAGEN) ---
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF4F6F5), // Color gris claro de fondo
-                borderRadius: BorderRadius.circular(28.0), // Esquinas sumamente redondeadas
-                border: Border.all(color: const Color(0xFFE2E6E4), width: 1), // Borde suave exterior
+                color: const Color(0xFFF4F6F5),
+                borderRadius: BorderRadius.circular(28.0),
+                border: Border.all(color: const Color(0xFFE2E6E4), width: 1),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
@@ -79,12 +87,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Icono circular de información
                         Container(
                           padding: const EdgeInsets.all(8.0),
                           decoration: const BoxDecoration(
-                            color: Color(0xFFD2EDE8), // Fondo verde menta pastel
-                            shape: BoxShape.circle,   // Forma completamente circular
+                            color: Color(0xFFD2EDE8),
+                            shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.info_outline,
@@ -93,7 +100,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                         ),
                         const SizedBox(width: 14.0),
-                        // Textos de Cabecera
                         const Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,7 +126,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ],
                     ),
-                    // Línea divisoria horizontal delgada
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 14.0),
                       child: Divider(
@@ -129,7 +134,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         height: 1,
                       ),
                     ),
-                    // Texto explicativo inferior de la tarjeta
                     const Text(
                       'Llena tus datos, elige destino y confirma tu viaje.',
                       style: TextStyle(
@@ -142,8 +146,40 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
             ),
-            
-            // Aquí puedes continuar agregando tus inputs o campos más abajo
+            const SizedBox(height: 24.0),
+            const Text(
+              'Datos del viajero',
+              style: TextStyle(
+                color: Colors.black87,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16.0),
+            TextFormField(
+              controller: _nombreController,
+              decoration: const InputDecoration(
+                labelText: 'Nombre completo',
+                hintText: 'Ej: Ana Garcia',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                ),
+                prefixIcon: Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 16.0),
+            TextFormField(
+              controller: _correoController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                hintText: 'Ej: ana@correo.com',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                ),
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
           ],
         ),
       ),
