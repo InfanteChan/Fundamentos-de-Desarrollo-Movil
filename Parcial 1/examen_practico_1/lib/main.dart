@@ -160,12 +160,22 @@ class _MyHomePageState extends State<MyHomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInformacionGeneral(),
+
             const SizedBox(height: 16),
+
             _buildDatosViajero(),
+
             const SizedBox(height: 16),
+
             _buildDestinoYTransporte(),
+
             const SizedBox(height: 16),
+
             _buildExtrasYPreferencias(),
+
+            const SizedBox(height: 16),
+
+            _buildConfirmar(),
           ],
         ),
       ),
@@ -556,6 +566,128 @@ class _MyHomePageState extends State<MyHomePage> {
           color: Colors.black38,
         ),
         onTap: () => _seleccionarFecha(context),
+      ),
+    );
+  }
+
+  Widget _buildConfirmar() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: mainGreen,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.check,
+                  color: Colors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Sección 5 · Confirmar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Revisa tus datos antes de despegar. ✈️',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _mostrarSnackBar(
+                      'Mostrando resumen de la reserva',
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.visibility,
+                    color: mainGreen,
+                  ),
+                  label: const Text(
+                    'Ver Resumen',
+                    style: TextStyle(
+                      color: mainGreen,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: mainGreen,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    _mostrarSnackBar(
+                      '¡Reserva confirmada!',
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.flight_takeoff,
+                    color: Colors.black87,
+                  ),
+                  label: const Text(
+                    'Confirmar',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFC107),
+                    foregroundColor: Colors.black87,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
