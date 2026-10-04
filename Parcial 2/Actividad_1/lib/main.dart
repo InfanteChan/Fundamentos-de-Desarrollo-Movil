@@ -1,122 +1,324 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
-void main() {
-  runApp(const MyApp());
-}
+const _url =
+    'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+void main() => runApp(const NflApp());
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+// ───────────────────────── Modelos ─────────────────────────
+
+class Team {
+  final String name;
+  final String abbreviation;
+  final String logo;
+  final String score;
+  final String record;
+  final bool winner;
+
+  Team({
+    required this.name,
+    required this.abbreviation,
+    required this.logo,
+    required this.score,
+    required this.record,
+    required this.winner,
+  });
+
+  factory Team.fromJson(Map<String, dynamic> json) {
+    final team = json['team'] as Map<String, dynamic>;
+    final records = json['records'] as List?;
+    return Team(
+      name: team['displayName'] ?? '',
+      abbreviation: team['abbreviation'] ?? '',
+      logo: team['logo'] ?? '',
+      score: json['score']?.toString() ?? '0',
+      record: (records != null && records.isNotEmpty)
+          ? records.first['summary'] ?? ''
+          : '',
+      winner: json['winner'] == true,
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class Game {
+  final String id;
+  final DateTime date;
+  final String statusDetail; // "Final", "10/4 - 1:00 PM EDT", "Q3 5:12"...
+  final String state; // pre | in | post
+  final String venue;
+  final String broadcast;
+  final Team home;
+  final Team away;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
+  Game({
+    required this.id,
+    required this.date,
+    required this.statusDetail,
+    required this.state,
+    required this.venue,
+    required this.broadcast,
+    required this.home,
+    required this.away,
+  });
 
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
+  factory Game.fromJson(Map<String, dynamic> json) {
+    final comp = (json['competitions'] as List).first as Map<String, dynamic>;
+    final competitors = comp['competitors'] as List;
+    final home = competitors.firstWhere((c) => c['homeAway'] == 'home');
+    final away = competitors.firstWhere((c) => c['homeAway'] == 'away');
+    final statusType = json['status']['type'] as Map<String, dynamic>;
 
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+    return Game(
+      id: json['id'] ?? '',
+      date: DateTime.parse(json['date']).toLocal(),
+      statusDetail: statusType['shortDetail'] ?? '',
+      state: statusType['state'] ?? 'pre',
+      venue: comp['venue']?['fullName'] ?? '',
+      broadcast: comp['broadcast'] ?? '',
+      home: Team.fromJson(home),
+      away: Team.fromJson(away),
+    );
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class Scoreboard {
+  final int week;
+  final List<Game> games;
+  Scoreboard({required this.week, required this.games});
+}
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+// ───────────────────────── API ─────────────────────────
+
+Future<Scoreboard> fetchScoreboard() async {
+  final res = await http.get(Uri.parse(_url));
+  if (res.statusCode != 200) {
+    throw Exception('Error del servidor (${res.statusCode})');
+  }
+  final data = jsonDecode(res.body) as Map<String, dynamic>;
+  final events = (data['events'] as List?) ?? [];
+  return Scoreboard(
+    week: data['week']?['number'] ?? 0,
+    games: events
+        .map((e) => Game.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+// ───────────────────────── UI ─────────────────────────
+
+class NflApp extends StatelessWidget {
+  const NflApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'NFL Scoreboard',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: const Color(0xFF013369), // azul NFL
+        useMaterial3: true,
+      ),
+      home: const ScoreboardPage(),
+    );
+  }
+}
+
+class ScoreboardPage extends StatefulWidget {
+  const ScoreboardPage({super.key});
+
+  @override
+  State<ScoreboardPage> createState() => _ScoreboardPageState();
+}
+
+class _ScoreboardPageState extends State<ScoreboardPage> {
+  late Future<Scoreboard> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = fetchScoreboard();
+  }
+
+  Future<void> _refresh() async {
+    final f = fetchScoreboard();
+    setState(() => _future = f);
+    try {
+      await f;
+    } catch (_) {
+      // El error se muestra en el FutureBuilder.
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
+      backgroundColor: Colors.red, // fondo rojo
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        backgroundColor: Colors.white, // para que el título azul se lea bien
+        title: FutureBuilder<Scoreboard>(
+          future: _future,
+          builder: (_, snap) => Text(
+            snap.hasData ? 'NFL · Semana ${snap.data!.week}' : 'NFL',
+            style: const TextStyle(
+                color: Color(0xFF013369), // azul oscuro
+                fontWeight: FontWeight.bold,
+        ),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    ),
+    iconTheme: const IconThemeData(color: Color(0xFF013369)), // ícono de refrescar
+    actions: [
+      IconButton(
+        icon: const Icon(Icons.refresh),
+        onPressed: _refresh,
+      ),
+    ],
+  ),
+      body: FutureBuilder<Scoreboard>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.wifi_off, size: 48),
+                    const SizedBox(height: 12),
+                    Text('No se pudieron cargar los datos\n${snapshot.error}',
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: _refresh,
+                      child: const Text('Reintentar'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final games = snapshot.data!.games;
+          if (games.isEmpty) {
+            return const Center(child: Text('No hay partidos disponibles'));
+          }
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: games.length,
+              itemBuilder: (_, i) => GameCard(game: games[i]),
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class GameCard extends StatelessWidget {
+  final Game game;
+  const GameCard({super.key, required this.game});
+
+  static const _dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+  String get _fecha {
+    final d = game.date;
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '${_dias[d.weekday - 1]} ${d.day}/${d.month} · $hh:$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isLive = game.state == 'in';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Estado del partido
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  game.state == 'pre' ? _fecha : game.statusDetail,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isLive ? Colors.red : scheme.primary,
+                  ),
+                ),
+                if (game.broadcast.isNotEmpty)
+                  Text(game.broadcast,
+                      style: Theme.of(context).textTheme.labelMedium),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TeamRow(team: game.away, showScore: game.state != 'pre'),
+            const SizedBox(height: 8),
+            TeamRow(team: game.home, showScore: game.state != 'pre'),
+            if (game.venue.isNotEmpty) ...[
+              const Divider(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.stadium_outlined, size: 16),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(game.venue,
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+    );
+  }
+}
+
+class TeamRow extends StatelessWidget {
+  final Team team;
+  final bool showScore;
+  const TeamRow({super.key, required this.team, required this.showScore});
+
+  @override
+  Widget build(BuildContext context) {
+    final bold = team.winner ? FontWeight.bold : FontWeight.normal;
+    return Row(
+      children: [
+        Image.network(
+          team.logo,
+          width: 40,
+          height: 40,
+          errorBuilder: (_, __, ___) => const Icon(Icons.sports_football),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(team.name,
+                  style: TextStyle(fontSize: 16, fontWeight: bold)),
+              if (team.record.isNotEmpty)
+                Text(team.record,
+                    style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        if (showScore)
+          Text(team.score,
+              style: TextStyle(fontSize: 24, fontWeight: bold)),
+      ],
     );
   }
 }
