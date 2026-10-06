@@ -1,121 +1,375 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://TU-PROYECTO.supabase.co',
+    anonKey: 'TU_ANON_KEY',
+  );
+
+  runApp(const MiApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+final supabase = Supabase.instance.client;
 
-  // This widget is the root of your application.
+// ---------- Modelo ----------
+class Cancion {
+  final int id;
+  final String titulo;
+  final String artista;
+  final String? album;
+  final int? anio;
+  final int? duracionSeg;
+  final bool favorita;
+
+  Cancion({
+    required this.id,
+    required this.titulo,
+    required this.artista,
+    this.album,
+    this.anio,
+    this.duracionSeg,
+    required this.favorita,
+  });
+
+  factory Cancion.fromMap(Map<String, dynamic> m) => Cancion(
+        id: m['id'] as int,
+        titulo: m['titulo'] as String,
+        artista: m['artista'] as String,
+        album: m['album'] as String?,
+        anio: m['anio'] as int?,
+        duracionSeg: m['duracion_seg'] as int?,
+        favorita: m['favorita'] as bool,
+      );
+
+  Cancion copyWith({bool? favorita}) => Cancion(
+        id: id,
+        titulo: titulo,
+        artista: artista,
+        album: album,
+        anio: anio,
+        duracionSeg: duracionSeg,
+        favorita: favorita ?? this.favorita,
+      );
+
+  String get duracion {
+    if (duracionSeg == null) return '--:--';
+    final m = duracionSeg! ~/ 60;
+    final s = (duracionSeg! % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+}
+
+// ---------- App ----------
+class MiApp extends StatelessWidget {
+  const MiApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'Mi Música',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
+        brightness: Brightness.light,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.deepPurple,
+        brightness: Brightness.dark,
+      ),
+      home: const PantallaCanciones(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class PantallaCanciones extends StatefulWidget {
+  const PantallaCanciones({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PantallaCanciones> createState() => _PantallaCancionesState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _PantallaCancionesState extends State<PantallaCanciones> {
+  List<Cancion> _canciones = [];
+  bool _cargando = true;
+  String? _error;
+  String _busqueda = '';
+  bool _soloFavoritas = false;
 
-  void _incrementCounter() {
+  @override
+  void initState() {
+    super.initState();
+    _cargar();
+  }
+
+  Future<void> _cargar() async {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _cargando = true;
+      _error = null;
     });
+    try {
+      final data = await supabase
+          .from('canciones')
+          .select()
+          .order('titulo', ascending: true);
+      setState(() {
+        _canciones = (data as List)
+            .map((e) => Cancion.fromMap(e as Map<String, dynamic>))
+            .toList();
+        _cargando = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _cargando = false;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorita(Cancion c) async {
+    final nuevo = !c.favorita;
+    final idx = _canciones.indexWhere((x) => x.id == c.id);
+
+    // Actualización optimista en la UI
+    setState(() => _canciones[idx] = c.copyWith(favorita: nuevo));
+
+    try {
+      await supabase.from('canciones').update({'favorita': nuevo}).eq('id', c.id);
+    } catch (e) {
+      // Si falla, revertimos
+      setState(() => _canciones[idx] = c);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  List<Cancion> get _filtradas {
+    final q = _busqueda.toLowerCase();
+    return _canciones.where((c) {
+      final coincide = c.titulo.toLowerCase().contains(q) ||
+          c.artista.toLowerCase().contains(q) ||
+          (c.album ?? '').toLowerCase().contains(q);
+      return coincide && (!_soloFavoritas || c.favorita);
+    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+        title: const Text('Mi Música',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            tooltip: 'Solo favoritas',
+            icon: Icon(_soloFavoritas ? Icons.favorite : Icons.favorite_border),
+            color: _soloFavoritas ? Colors.redAccent : null,
+            onPressed: () => setState(() => _soloFavoritas = !_soloFavoritas),
+          ),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: SearchBar(
+              hintText: 'Buscar canción, artista o álbum',
+              leading: const Icon(Icons.search),
+              elevation: const WidgetStatePropertyAll(0),
+              backgroundColor:
+                  WidgetStatePropertyAll(cs.surfaceContainerHighest),
+              onChanged: (v) => setState(() => _busqueda = v),
+            ),
+          ),
+          Expanded(child: _contenido()),
+        ],
+      ),
+    );
+  }
+
+  Widget _contenido() {
+    if (_cargando) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Error: $_error', textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              FilledButton(onPressed: _cargar, child: const Text('Reintentar')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final lista = _filtradas;
+    if (lista.isEmpty) {
+      return const Center(child: Text('No se encontraron canciones'));
+    }
+
+    return RefreshIndicator(
+      onRefresh: _cargar,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        itemCount: lista.length,
+        itemBuilder: (_, i) => TarjetaCancion(
+          cancion: lista[i],
+          onFavorita: () => _toggleFavorita(lista[i]),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Tarjeta ----------
+class TarjetaCancion extends StatelessWidget {
+  final Cancion cancion;
+  final VoidCallback onFavorita;
+
+  const TarjetaCancion({
+    super.key,
+    required this.cancion,
+    required this.onFavorita,
+  });
+
+  // Color estable por artista para que cada uno tenga su "identidad"
+  Color _colorArtista(String artista) {
+    final hue = (artista.hashCode % 360).abs().toDouble();
+    return HSLColor.fromAHSL(1, hue, 0.55, 0.45).toColor();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final color = _colorArtista(cancion.artista);
+
+    return Card(
+      elevation: 0,
+      color: tema.colorScheme.surfaceContainerLow,
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
           children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+            // "Portada" generada con degradado + inicial
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: LinearGradient(
+                  colors: [color, color.withOpacity(0.55)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                cancion.titulo.substring(0, 1).toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cancion.titulo,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: tema.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    cancion.artista,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: tema.textTheme.bodyMedium
+                        ?.copyWith(color: tema.colorScheme.primary),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (cancion.album != null)
+                        _Chip(icono: Icons.album, texto: cancion.album!),
+                      if (cancion.anio != null)
+                        _Chip(
+                            icono: Icons.calendar_today,
+                            texto: '${cancion.anio}'),
+                      _Chip(icono: Icons.timer_outlined, texto: cancion.duracion),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: onFavorita,
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                transitionBuilder: (child, anim) =>
+                    ScaleTransition(scale: anim, child: child),
+                child: Icon(
+                  cancion.favorita ? Icons.favorite : Icons.favorite_border,
+                  key: ValueKey(cancion.favorita),
+                  color: cancion.favorita ? Colors.redAccent : null,
+                ),
+              ),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final IconData icono;
+  final String texto;
+  const _Chip({required this.icono, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 12, color: cs.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              texto,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ],
       ),
     );
   }
