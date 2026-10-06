@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -6,7 +7,7 @@ Future<void> main() async {
 
   await Supabase.initialize(
     url: 'https://TU-PROYECTO.supabase.co',
-    anonKey: 'TU_ANON_KEY',
+    publishableKey: 'TU_PUBLISHABLE_KEY',
   );
 
   runApp(const MiApp());
@@ -62,6 +63,18 @@ class Cancion {
   }
 }
 
+// ---------- Orden ----------
+enum Orden { titulo, artista, anio, duracion }
+
+extension OrdenX on Orden {
+  String get etiqueta => switch (this) {
+        Orden.titulo => 'Título',
+        Orden.artista => 'Artista',
+        Orden.anio => 'Año',
+        Orden.duracion => 'Duración',
+      };
+}
+
 // ---------- App ----------
 class MiApp extends StatelessWidget {
   const MiApp({super.key});
@@ -99,6 +112,8 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
   String? _error;
   String _busqueda = '';
   bool _soloFavoritas = false;
+  Orden _orden = Orden.titulo;
+  bool _ascendente = true;
 
   @override
   void initState() {
@@ -106,16 +121,21 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
     _cargar();
   }
 
+  void _mensaje(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  // ---------- Leer ----------
   Future<void> _cargar() async {
     setState(() {
       _cargando = true;
       _error = null;
     });
     try {
-      final data = await supabase
-          .from('canciones')
-          .select()
-          .order('titulo', ascending: true);
+      final data = await supabase.from('canciones').select();
       setState(() {
         _canciones = (data as List)
             .map((e) => Cancion.fromMap(e as Map<String, dynamic>))
@@ -130,45 +150,150 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
     }
   }
 
+  // ---------- Favorita ----------
   Future<void> _toggleFavorita(Cancion c) async {
     final nuevo = !c.favorita;
     final idx = _canciones.indexWhere((x) => x.id == c.id);
-
-    // Actualización optimista en la UI
     setState(() => _canciones[idx] = c.copyWith(favorita: nuevo));
 
     try {
-      await supabase.from('canciones').update({'favorita': nuevo}).eq('id', c.id);
+      final res = await supabase
+          .from('canciones')
+          .update({'favorita': nuevo})
+          .eq('id', c.id)
+          .select();
+      if (res.isEmpty) throw 'Sin permiso para actualizar (revisa la política RLS)';
     } catch (e) {
-      // Si falla, revertimos
       setState(() => _canciones[idx] = c);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo actualizar: $e')),
-        );
-      }
+      _mensaje('No se pudo actualizar: $e');
     }
+  }
+
+  // ---------- Agregar ----------
+  Future<void> _agregar() async {
+    final nueva = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const FormularioCancion(),
+    );
+    if (nueva == null) return;
+
+    try {
+      final fila =
+          await supabase.from('canciones').insert(nueva).select().single();
+      setState(() => _canciones.add(Cancion.fromMap(fila)));
+      _mensaje('Canción agregada');
+    } on PostgrestException catch (e) {
+      if (e.code == '23505') {
+        _mensaje('Esa canción ya existe');
+      } else {
+        _mensaje('No se pudo agregar: ${e.message}');
+      }
+    } catch (e) {
+      _mensaje('No se pudo agregar: $e');
+    }
+  }
+
+  // ---------- Eliminar ----------
+  Future<bool> _confirmarYEliminar(Cancion c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar canción'),
+        content: Text('¿Eliminar "${c.titulo}" de ${c.artista}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+
+    try {
+      final res =
+          await supabase.from('canciones').delete().eq('id', c.id).select();
+      if (res.isEmpty) throw 'Sin permiso para eliminar (revisa la política RLS)';
+      _mensaje('"${c.titulo}" eliminada');
+      return true;
+    } catch (e) {
+      _mensaje('No se pudo eliminar: $e');
+      return false;
+    }
+  }
+
+  // ---------- Filtrar y ordenar ----------
+  int _comparar(Cancion a, Cancion b) {
+    int r = switch (_orden) {
+      Orden.titulo => a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase()),
+      Orden.artista =>
+        a.artista.toLowerCase().compareTo(b.artista.toLowerCase()),
+      Orden.anio => (a.anio ?? 0).compareTo(b.anio ?? 0),
+      Orden.duracion => (a.duracionSeg ?? 0).compareTo(b.duracionSeg ?? 0),
+    };
+    if (r == 0) r = a.titulo.toLowerCase().compareTo(b.titulo.toLowerCase());
+    return _ascendente ? r : -r;
   }
 
   List<Cancion> get _filtradas {
     final q = _busqueda.toLowerCase();
-    return _canciones.where((c) {
+    final lista = _canciones.where((c) {
       final coincide = c.titulo.toLowerCase().contains(q) ||
           c.artista.toLowerCase().contains(q) ||
           (c.album ?? '').toLowerCase().contains(q);
       return coincide && (!_soloFavoritas || c.favorita);
     }).toList();
+    lista.sort(_comparar);
+    return lista;
   }
 
+  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final total = _filtradas.length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mi Música',
             style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
+          PopupMenuButton<Orden>(
+            tooltip: 'Ordenar por',
+            icon: const Icon(Icons.sort),
+            onSelected: (o) => setState(() {
+              if (o == _orden) {
+                _ascendente = !_ascendente;
+              } else {
+                _orden = o;
+                _ascendente = true;
+              }
+            }),
+            itemBuilder: (_) => [
+              for (final o in Orden.values)
+                PopupMenuItem(
+                  value: o,
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(o.etiqueta)),
+                      if (o == _orden)
+                        Icon(
+                          _ascendente
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
+                          size: 18,
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: 'Solo favoritas',
             icon: Icon(_soloFavoritas ? Icons.favorite : Icons.favorite_border),
@@ -177,10 +302,15 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _agregar,
+        icon: const Icon(Icons.add),
+        label: const Text('Agregar'),
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: SearchBar(
               hintText: 'Buscar canción, artista o álbum',
               leading: const Icon(Icons.search),
@@ -188,6 +318,16 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
               backgroundColor:
                   WidgetStatePropertyAll(cs.surfaceContainerHighest),
               onChanged: (v) => setState(() => _busqueda = v),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Orden: ${_orden.etiqueta} ${_ascendente ? '↑' : '↓'}  ·  $total canciones',
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              ),
             ),
           ),
           Expanded(child: _contenido()),
@@ -222,11 +362,200 @@ class _PantallaCancionesState extends State<PantallaCanciones> {
     return RefreshIndicator(
       onRefresh: _cargar,
       child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 90),
         itemCount: lista.length,
-        itemBuilder: (_, i) => TarjetaCancion(
-          cancion: lista[i],
-          onFavorita: () => _toggleFavorita(lista[i]),
+        itemBuilder: (context, i) {
+          final c = lista[i];
+          return Dismissible(
+            key: ValueKey(c.id),
+            direction: DismissDirection.endToStart,
+            confirmDismiss: (_) => _confirmarYEliminar(c),
+            onDismissed: (_) =>
+                setState(() => _canciones.removeWhere((x) => x.id == c.id)),
+            background: Container(
+              margin: const EdgeInsets.symmetric(vertical: 5),
+              padding: const EdgeInsets.only(right: 24),
+              alignment: Alignment.centerRight,
+              decoration: BoxDecoration(
+                color: Colors.redAccent,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            child: TarjetaCancion(
+              cancion: c,
+              onFavorita: () => _toggleFavorita(c),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------- Formulario para agregar ----------
+class FormularioCancion extends StatefulWidget {
+  const FormularioCancion({super.key});
+
+  @override
+  State<FormularioCancion> createState() => _FormularioCancionState();
+}
+
+class _FormularioCancionState extends State<FormularioCancion> {
+  final _formKey = GlobalKey<FormState>();
+  final _titulo = TextEditingController();
+  final _artista = TextEditingController();
+  final _album = TextEditingController();
+  final _anio = TextEditingController();
+  final _duracion = TextEditingController();
+  bool _favorita = false;
+
+  @override
+  void dispose() {
+    _titulo.dispose();
+    _artista.dispose();
+    _album.dispose();
+    _anio.dispose();
+    _duracion.dispose();
+    super.dispose();
+  }
+
+  // Acepta "3:45" o "225" (segundos)
+  int? _parseDuracion(String texto) {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    if (t.contains(':')) {
+      final partes = t.split(':');
+      if (partes.length != 2) return null;
+      final m = int.tryParse(partes[0]);
+      final s = int.tryParse(partes[1]);
+      if (m == null || s == null || s >= 60) return null;
+      return m * 60 + s;
+    }
+    return int.tryParse(t);
+  }
+
+  void _guardar() {
+    if (!_formKey.currentState!.validate()) return;
+    final album = _album.text.trim();
+    final anio = _anio.text.trim();
+    Navigator.pop(context, {
+      'titulo': _titulo.text.trim(),
+      'artista': _artista.text.trim(),
+      'album': album.isEmpty ? null : album,
+      'anio': anio.isEmpty ? null : int.parse(anio),
+      'duracion_seg': _parseDuracion(_duracion.text),
+      'favorita': _favorita,
+    });
+  }
+
+  InputDecoration _deco(String etiqueta, IconData icono) => InputDecoration(
+        labelText: etiqueta,
+        prefixIcon: Icon(icono),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Nueva canción',
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _titulo,
+                decoration: _deco('Título *', Icons.music_note),
+                inputFormatters: [LengthLimitingTextInputFormatter(120)],
+                textCapitalization: TextCapitalization.sentences,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obligatorio' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _artista,
+                decoration: _deco('Artista *', Icons.person),
+                inputFormatters: [LengthLimitingTextInputFormatter(120)],
+                textCapitalization: TextCapitalization.words,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Obligatorio' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _album,
+                decoration: _deco('Álbum', Icons.album),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _anio,
+                      decoration: _deco('Año', Icons.calendar_today),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(4),
+                      ],
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final n = int.tryParse(v);
+                        if (n == null || n < 1900 || n > 2100) {
+                          return '1900 - 2100';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _duracion,
+                      decoration: _deco('Duración', Icons.timer_outlined)
+                          .copyWith(hintText: '3:45'),
+                      keyboardType: TextInputType.datetime,
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final s = _parseDuracion(v);
+                        if (s == null || s <= 0) return 'Ej. 3:45';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Marcar como favorita'),
+                value: _favorita,
+                onChanged: (v) => setState(() => _favorita = v),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _guardar,
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -244,7 +573,6 @@ class TarjetaCancion extends StatelessWidget {
     required this.onFavorita,
   });
 
-  // Color estable por artista para que cada uno tenga su "identidad"
   Color _colorArtista(String artista) {
     final hue = (artista.hashCode % 360).abs().toDouble();
     return HSLColor.fromAHSL(1, hue, 0.55, 0.45).toColor();
@@ -264,14 +592,13 @@ class TarjetaCancion extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // "Portada" generada con degradado + inicial
             Container(
               width: 60,
               height: 60,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 gradient: LinearGradient(
-                  colors: [color, color.withOpacity(0.55)],
+                  colors: [color, color.withValues(alpha: 0.55)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -317,7 +644,8 @@ class TarjetaCancion extends StatelessWidget {
                         _Chip(
                             icono: Icons.calendar_today,
                             texto: '${cancion.anio}'),
-                      _Chip(icono: Icons.timer_outlined, texto: cancion.duracion),
+                      _Chip(
+                          icono: Icons.timer_outlined, texto: cancion.duracion),
                     ],
                   ),
                 ],

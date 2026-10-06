@@ -300,7 +300,7 @@ class TeamRow extends StatelessWidget {
           team.logo,
           width: 40,
           height: 40,
-          errorBuilder: (_, __, ___) => const Icon(Icons.sports_football),
+          errorBuilder: (_, _, _) => const Icon(Icons.sports_football),
         ),
         const SizedBox(width: 12),
         Expanded(
