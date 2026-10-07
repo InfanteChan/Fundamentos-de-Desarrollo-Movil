@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pizzeria/core/bootstrap/app_bootstrap.dart';
+import 'package:pizzeria/presentation/screens/splash_screen.dart';
 import 'package:pizzeria/theme/app_colors.dart';
 
 Future<void> main() async {
@@ -20,11 +21,13 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: AppColors.background,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          surface: AppColors.cardBackground,
+        ),
       ),
-      home: const Scaffold(
-        body: Center(child: Text('🍕 PizzApp lista')),
-      ),
+      home: const SplashScreen(),
     );
   }
 }
