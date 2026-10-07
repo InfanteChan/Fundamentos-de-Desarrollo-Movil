@@ -1,6 +1,6 @@
 {
-    "name": "actividad_3",
-    "short_name": "actividad_3",
+    "name": "pizzeria",
+    "short_name": "pizzeria",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
