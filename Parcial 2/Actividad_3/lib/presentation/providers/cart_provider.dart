@@ -136,7 +136,9 @@ final cartSubtotalProvider = Provider<double>((ref) {
 });
 
 final cartDeliveryFeeProvider = Provider<double>((ref) {
-  return ref.watch(cartProvider).isEmpty ? 0.0 : kDeliveryFee;
+  final restaurants =
+      ref.watch(cartProvider).map((i) => i.pizza.restaurantId).toSet();
+  return restaurants.length * kDeliveryFee;
 });
 
 final cartTotalProvider = Provider<double>((ref) {

@@ -4,6 +4,8 @@ import 'package:pizzeria/core/ui/app_snackbar.dart';
 import 'package:pizzeria/presentation/providers/cart_provider.dart';
 import 'package:pizzeria/presentation/widgets/widgets.dart';
 import 'package:pizzeria/theme/app_colors.dart';
+import 'package:pizzeria/core/navigation/custom_navigator.dart';
+import 'package:pizzeria/presentation/screens/checkout_screen.dart';
 
 class CartScreen extends ConsumerWidget {
   final VoidCallback? onAddMoreProducts;
@@ -125,8 +127,8 @@ class CartScreen extends ConsumerWidget {
                       OrderSummaryCard(
                         subtotal: subtotal,
                         deliveryFee: deliveryFee,
-                        onCheckout: () => showAppSnackBar(
-                            context, 'El pago llega en el paso 8'),
+                        onCheckout: () => CustomNavigator.pushFade(
+                            context, const CheckoutScreen()),
                       ),
                       const SizedBox(height: 24),
                     ],

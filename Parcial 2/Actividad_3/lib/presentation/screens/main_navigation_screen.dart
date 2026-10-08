@@ -9,6 +9,8 @@ import 'package:pizzeria/presentation/screens/menu_screen.dart';
 import 'package:pizzeria/presentation/screens/welcome_screen.dart';
 import 'package:pizzeria/presentation/widgets/widgets.dart';
 import 'package:pizzeria/theme/app_colors.dart';
+import 'package:pizzeria/presentation/screens/buyer_orders_screen.dart';
+import 'package:pizzeria/presentation/screens/map_screen.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -32,8 +34,8 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
     final screens = [
       HomeScreen(onNavigateToMenu: _goToMenu),
       MenuScreen(onNavigateToMenu: _goToMenu),
-      const _ComingSoonTab(title: 'Pedidos', icon: Icons.shopping_bag_outlined),
-      const _ComingSoonTab(title: 'Mapa', icon: Icons.map_outlined),
+      const BuyerOrdersScreen(),
+       const MapScreen(),
       const _ProfileTab(),
     ];
 
@@ -57,33 +59,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
       bottomNavigationBar: CustomBottomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-      ),
-    );
-  }
-}
-
-// Marcador temporal hasta construir estas pantallas
-class _ComingSoonTab extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _ComingSoonTab({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppTopBar(title: title, showBackButton: false),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 64, color: AppColors.textLight),
-            const SizedBox(height: 12),
-            const Text('Próximamente',
-                style: TextStyle(color: AppColors.textSecondary)),
-          ],
-        ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import 'package:pizzeria/presentation/providers/pizza_provider.dart';
 import 'package:pizzeria/presentation/screens/pizza_detail_screen.dart';
 import 'package:pizzeria/presentation/widgets/widgets.dart';
 import 'package:pizzeria/theme/app_colors.dart';
+   import 'package:pizzeria/presentation/providers/location_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   final VoidCallback? onNavigateToMenu;
@@ -16,6 +17,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pizzasAsync = ref.watch(pizzasProvider);
 
+    final locationAsync = ref.watch(userLocationProvider);
+    
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppTopBar(
@@ -31,6 +34,44 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                   Row(
+     children: [
+       const Icon(Icons.location_on, color: AppColors.primary, size: 20),
+       const SizedBox(width: 6),
+       Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           const Text(
+             'Entregar en',
+             style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+           ),
+           locationAsync.when(
+             data: (pos) => Text(
+               'Ubicación actual (${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)})',
+               style: const TextStyle(
+                 fontSize: 13,
+                 fontWeight: FontWeight.bold,
+                 color: AppColors.textPrimary,
+               ),
+             ),
+             loading: () => const Text(
+               'Obteniendo ubicación GPS...',
+               style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+             ),
+             error: (_, _) => const Text(
+               'Ciudad de México (GPS no disponible)',
+               style: TextStyle(
+                 fontSize: 13,
+                 fontWeight: FontWeight.bold,
+                 color: AppColors.textPrimary,
+               ),
+             ),
+           ),
+         ],
+       ),
+     ],
+   ),
+   const SizedBox(height: 18),
                 PromoBanner(onOrderNow: onNavigateToMenu),
                 const SizedBox(height: 24),
                 Row(
