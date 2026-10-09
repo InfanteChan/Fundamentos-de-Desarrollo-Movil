@@ -1,8 +1,13 @@
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../core/categorias.dart';
 import '../models/lugar.dart';
 import '../providers/lugares_provider.dart';
+import 'map_picker_screen.dart';
 
 class LugarFormScreen extends StatefulWidget {
   final Lugar? lugar; // null = agregar, con valor = editar
@@ -14,11 +19,13 @@ class LugarFormScreen extends StatefulWidget {
 
 class _LugarFormScreenState extends State<LugarFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _picker = ImagePicker();
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _descCtrl;
-  late final TextEditingController _latCtrl;
-  late final TextEditingController _lngCtrl;
   late String _categoria;
+  LatLng? _punto;
+  XFile? _foto; // foto nueva elegida
+  Uint8List? _fotoBytes; // para la vista previa
   bool _guardando = false;
 
   bool get _esEdicion => widget.lugar != null;
@@ -29,24 +36,59 @@ class _LugarFormScreenState extends State<LugarFormScreen> {
     final l = widget.lugar;
     _nombreCtrl = TextEditingController(text: l?.nombre ?? '');
     _descCtrl = TextEditingController(text: l?.descripcion ?? '');
-    _latCtrl = TextEditingController(text: l?.latitud.toString() ?? '');
-    _lngCtrl = TextEditingController(text: l?.longitud.toString() ?? '');
     _categoria = l?.categoria ?? categorias.keys.first;
+    if (l != null) _punto = LatLng(l.latitud, l.longitud);
   }
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _descCtrl.dispose();
-    _latCtrl.dispose();
-    _lngCtrl.dispose();
     super.dispose();
   }
 
-  double? _numero(String texto) => double.tryParse(texto.trim().replaceAll(',', '.'));
+  void _mensaje(String texto) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+  }
+
+  Future<void> _elegirFoto(ImageSource fuente) async {
+    try {
+      final foto = await _picker.pickImage(
+        source: fuente,
+        maxWidth: 1280,
+        imageQuality: 80,
+      );
+      if (foto == null) return;
+      final bytes = await foto.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _foto = foto;
+        _fotoBytes = bytes;
+      });
+    } catch (_) {
+      _mensaje('No se pudo abrir la cámara o la galería.');
+    }
+  }
+
+  Future<void> _elegirUbicacion() async {
+    final punto = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(builder: (_) => MapPickerScreen(inicial: _punto)),
+    );
+    if (punto != null) setState(() => _punto = punto);
+  }
 
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
+    /*if (!_esEdicion && _foto == null) {
+      _mensaje('Agrega una foto del lugar.');
+      return;
+    }*/
+    if (_punto == null) {
+      _mensaje('Elige la ubicación en el mapa.');
+      return;
+    }
     setState(() => _guardando = true);
 
     final lugar = Lugar(
@@ -54,28 +96,49 @@ class _LugarFormScreenState extends State<LugarFormScreen> {
       nombre: _nombreCtrl.text.trim(),
       descripcion: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       categoria: _categoria,
-      latitud: _numero(_latCtrl.text)!,
-      longitud: _numero(_lngCtrl.text)!,
+      latitud: _punto!.latitude,
+      longitud: _punto!.longitude,
       fotoUrl: widget.lugar?.fotoUrl,
     );
 
     try {
       final provider = context.read<LugaresProvider>();
       if (_esEdicion) {
-        await provider.editar(lugar);
+        await provider.editar(lugar, fotoNueva: _foto);
       } else {
-        await provider.crear(lugar);
+        await provider.crear(lugar, foto: _foto);
       }
       if (mounted) Navigator.pop(context);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo guardar. Revisa tu internet.')),
-        );
-      }
+      _mensaje('No se pudo guardar. Revisa tu internet.');
     } finally {
       if (mounted) setState(() => _guardando = false);
     }
+  }
+
+  Widget _vistaFoto() {
+    const placeholder = Center(
+      child: Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
+    );
+    Widget contenido = placeholder;
+    if (_fotoBytes != null) {
+      contenido = Image.memory(_fotoBytes!, fit: BoxFit.cover);
+    } else if (widget.lugar?.fotoUrl != null) {
+      contenido = Image.network(
+        widget.lugar!.fotoUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 180,
+        width: double.infinity,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        child: contenido,
+      ),
+    );
   }
 
   @override
@@ -88,6 +151,30 @@ class _LugarFormScreenState extends State<LugarFormScreen> {
           key: _formKey,
           child: Column(
             children: [
+              _vistaFoto(),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _elegirFoto(ImageSource.gallery),
+                      icon: const Icon(Icons.photo_library),
+                      label: const Text('Galería'),
+                    ),
+                  ),
+                  if (!kIsWeb) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _elegirFoto(ImageSource.camera),
+                        icon: const Icon(Icons.photo_camera),
+                        label: const Text('Cámara'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _nombreCtrl,
                 decoration: const InputDecoration(
@@ -126,41 +213,19 @@ class _LugarFormScreenState extends State<LugarFormScreen> {
                 onChanged: (v) => setState(() => _categoria = v!),
               ),
               const SizedBox(height: 12),
-              // TEMPORAL: en el Paso 5 esto se reemplaza por el mapa.
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _latCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true, signed: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Latitud',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) {
-                        final n = _numero(v ?? '');
-                        return (n == null || n < -90 || n > 90) ? 'Inválida' : null;
-                      },
-                    ),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: _elegirUbicacion,
+                  icon: const Icon(Icons.map),
+                  label: Text(
+                    _punto == null
+                        ? 'Elegir ubicación en el mapa'
+                        : '${_punto!.latitude.toStringAsFixed(5)}, '
+                            '${_punto!.longitude.toStringAsFixed(5)}  (cambiar)',
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _lngCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true, signed: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Longitud',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) {
-                        final n = _numero(v ?? '');
-                        return (n == null || n < -180 || n > 180) ? 'Inválida' : null;
-                      },
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 24),
               SizedBox(

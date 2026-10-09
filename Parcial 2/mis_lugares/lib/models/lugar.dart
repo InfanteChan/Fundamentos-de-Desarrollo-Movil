@@ -36,4 +36,13 @@ class Lugar {
         'longitud': longitud,
         'foto_url': fotoUrl,
       };
+  Lugar copyWith({String? fotoUrl}) => Lugar(
+        id: id,
+        nombre: nombre,
+        descripcion: descripcion,
+        categoria: categoria,
+        latitud: latitud,
+        longitud: longitud,
+        fotoUrl: fotoUrl ?? this.fotoUrl,
+      );
 }
