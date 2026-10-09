@@ -127,7 +127,7 @@ class _LugarFormScreenState extends State<LugarFormScreen> {
       contenido = Image.network(
         widget.lugar!.fotoUrl!,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => placeholder,
+        errorBuilder: (_, _, _) => placeholder,
       );
     }
     return ClipRRect(

@@ -6,6 +6,8 @@ import '../providers/lugares_provider.dart';
 import '../services/auth_service.dart';
 import 'lugar_form_screen.dart';
 import 'mapa_lugares_view.dart';
+import 'perfil_view.dart';
+  import '../widgets/banner_sin_conexion.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -78,7 +80,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mis Lugares'),
+                title: Text(
+          _indice == 0 && provider.lugares.isNotEmpty
+              ? 'Mis Lugares (${provider.lugares.length})'
+              : 'Mis Lugares',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -87,7 +93,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
+            floatingActionButton: _indice == 2
+          ? null
+          : FloatingActionButton.extended(
         onPressed: () => _abrirFormulario(),
         icon: const Icon(Icons.add_location_alt),
         label: const Text('Agregar'),
@@ -98,9 +106,26 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.list), label: 'Lista'),
           NavigationDestination(icon: Icon(Icons.map), label: 'Mapa'),
+                    NavigationDestination(icon: Icon(Icons.person), label: 'Perfil'),
         ],
       ),
-      body: _indice == 0 ? _cuerpo(provider) : const MapaLugaresView(),
+            body: BannerSinConexion(
+              child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  layoutBuilder: (actual, anteriores) => Stack(
+                  fit: StackFit.expand,
+                  children: [...anteriores, ?actual],
+                  ),
+        child: KeyedSubtree(
+          key: ValueKey(_indice),
+          child: switch (_indice) {
+            0 => _cuerpo(provider),
+            1 => const MapaLugaresView(),
+            _ => const PerfilView(),
+          },
+        ),
+      ),
+      ),
     );
   }
 
@@ -114,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
         width: 56,
         height: 56,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => icono,
+        errorBuilder: (_, _, _) => icono,
       ),
     );
   }

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/constants.dart';
-import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
-import 'package:provider/provider.dart';
+import 'core/tema.dart';
 import 'providers/lugares_provider.dart';
+import 'providers/tema_provider.dart';
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,11 +14,14 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
   runApp(
-  ChangeNotifierProvider(
-    create: (_) => LugaresProvider(),
-    child: const MyApp(),
-  ),
-);
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LugaresProvider()),
+        ChangeNotifierProvider(create: (_) => TemaProvider()..cargar()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -25,27 +29,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final modo = context.watch<TemaProvider>().modo;
     return MaterialApp(
       title: 'Mis Lugares Favoritos',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: Colors.teal, useMaterial3: true),
-      home: const AuthGate(),
-    );
-  }
-}
-
-/// Decide qué pantalla mostrar según haya sesión o no.
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        final session = Supabase.instance.client.auth.currentSession;
-        return session != null ? const HomeScreen() : const LoginScreen();
-      },
+      theme: AppTema.claro,
+      darkTheme: AppTema.oscuro,
+      themeMode: modo,
+      home: const SplashScreen(),
     );
   }
 }
