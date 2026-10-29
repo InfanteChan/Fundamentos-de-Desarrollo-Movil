@@ -13,3 +13,4 @@ export 'pizza_logo.dart';
 export 'pizza_popular_card.dart';
 export 'promo_banner.dart';
 export 'quantity_selector.dart';
+export 'theme_mode_switch.dart';

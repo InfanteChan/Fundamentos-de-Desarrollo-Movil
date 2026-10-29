@@ -97,6 +97,8 @@ class SellerProfileScreen extends ConsumerWidget {
                         title: 'Estado del Negocio',
                         subtitle: 'Activo y Verificado',
                       ),
+                      const Divider(height: 24),
+                      const ThemeModeSwitch(),
                     ],
                   ),
                 ),

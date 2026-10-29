@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pizzeria/models/pizza_model.dart';
 import 'package:pizzeria/theme/app_colors.dart';
+import 'package:pizzeria/theme/app_palette.dart';
 
 class PizzaPopularCard extends StatelessWidget {
   final PizzaModel pizza;
@@ -58,7 +59,7 @@ class PizzaPopularCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: AppColors.inputBackground,
               ),
             ),
             const SizedBox(height: 4),

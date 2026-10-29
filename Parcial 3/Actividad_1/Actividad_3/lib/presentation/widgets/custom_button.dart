@@ -89,8 +89,9 @@ class CustomButton extends StatelessWidget {
           height: height,
           child: ElevatedButton(
             onPressed: action,
-            style: ElevatedButton.styleFrom(
+          style: ElevatedButton.styleFrom(
               backgroundColor: backgroundColor ?? AppColors.primary,
+              foregroundColor: textColor ?? Colors.white,
               elevation: 0,
               shape: shape,
             ),

@@ -11,6 +11,7 @@ import 'package:pizzeria/presentation/widgets/widgets.dart';
 import 'package:pizzeria/theme/app_colors.dart';
 import 'package:pizzeria/presentation/screens/buyer_orders_screen.dart';
 import 'package:pizzeria/presentation/screens/map_screen.dart';
+import 'package:pizzeria/theme/app_palette.dart';
 
 class MainNavigationScreen extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -64,7 +65,6 @@ class _MainNavigationScreenState extends ConsumerState<MainNavigationScreen> {
   }
 }
 
-// Perfil básico con cierre de sesión (se completará más adelante)
 class _ProfileTab extends ConsumerWidget {
   const _ProfileTab();
 
@@ -73,7 +73,7 @@ class _ProfileTab extends ConsumerWidget {
     final user = ref.watch(authProvider).value;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       appBar: const AppTopBar(title: 'Perfil', showBackButton: false),
       body: Center(
         child: Column(
@@ -83,12 +83,23 @@ class _ProfileTab extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               user?.fullName ?? '',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: context.colors.textPrimary,
+              ),
             ),
             const SizedBox(height: 4),
-            Text(user?.email ?? '',
-                style: const TextStyle(color: AppColors.textSecondary)),
-            const SizedBox(height: 24),
+            Text(
+              user?.email ?? '',
+              style: TextStyle(color: context.colors.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: const ThemeModeSwitch(),
+            ),
+            const SizedBox(height: 8),
             CustomButton(
               text: 'Cerrar sesión',
               width: 200,

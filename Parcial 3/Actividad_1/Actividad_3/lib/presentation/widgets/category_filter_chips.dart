@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pizzeria/theme/app_colors.dart';
 
+
 class CategoryFilterChips extends StatelessWidget {
   final List<String> categories;
   final String selectedCategory;

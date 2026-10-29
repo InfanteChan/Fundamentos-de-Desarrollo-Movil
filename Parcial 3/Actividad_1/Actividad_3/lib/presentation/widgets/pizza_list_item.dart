@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pizzeria/models/pizza_model.dart';
 import 'package:pizzeria/theme/app_colors.dart';
+import 'package:pizzeria/theme/app_palette.dart';
 
 class PizzaListItem extends StatelessWidget {
   final PizzaModel pizza;
